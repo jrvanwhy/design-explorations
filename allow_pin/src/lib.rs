@@ -8,6 +8,7 @@ use zerocopy::{FromBytes, IntoBytes};
 
 pub mod allow_ref;
 pub mod dynamic_type;
+pub mod flexible_allow_ref;
 pub mod full_dynamic;
 pub mod no_dynamic;
 
