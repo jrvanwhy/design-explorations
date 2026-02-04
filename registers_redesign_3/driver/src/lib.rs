@@ -16,7 +16,7 @@ pub mod status {
 
     pub trait Interface: Register<DataType = u8> + Read {}
 
-    pub trait Bus: Copy + sealed::Bus + registers::Bus<u8> {}
+    pub trait Bus: Copy + sealed::Bus + registers::BusValue<u8> {}
     impl Bus for Mmio {}
     mod sealed {
         use crate::*;
@@ -36,7 +36,7 @@ pub mod status {
     // won't use RealBlock directly; they will use the inherent methods instead.
     impl<B: Bus> RealBlock for GenericReal<B> {
         type Bus = B;
-        const ADDRESS_SIZE: usize = <B as registers::Bus<u8>>::ADDRESS_SIZE;
+        const ADDRESS_SIZE: usize = <B as registers::BusValue<u8>>::ADDRESS_SIZE;
         unsafe fn with_bus(pointer: core::ptr::NonNull<()>, bus: B) -> Self {
             Self { bus, pointer }
         }
@@ -86,7 +86,10 @@ pub mod status_array {
     // ArrayRegister is a trait defined in tock_registers.
     pub trait Interface: ArrayRegister<Element: status::Interface> {}
 
-    pub trait Bus: Copy + sealed::Bus + status::Bus {}
+    pub trait Bus:
+        Copy + sealed::Bus + status::Bus + registers::Bus<Address: registers::AddableAddress>
+    {
+    }
     impl Bus for Mmio {}
     mod sealed {
         use crate::*;
@@ -130,7 +133,13 @@ pub mod foo {
     }
 
     #[allow(non_upper_case_globals)]
-    pub trait Bus: Copy + sealed::Bus + status::Bus + status_array::Bus {
+    pub trait Bus:
+        Copy
+        + sealed::Bus
+        + status::Bus
+        + status_array::Bus
+        + registers::Bus<Address: registers::AddableAddress>
+    {
         // These values are the offsets of each field.
         const status: usize;
         const status_array: usize;
@@ -169,7 +178,7 @@ pub mod foo {
 
     impl<B: Bus> RealBlock for real_control<B> {
         type Bus = B;
-        const ADDRESS_SIZE: usize = <B as registers::Bus<u8>>::ADDRESS_SIZE;
+        const ADDRESS_SIZE: usize = <B as registers::BusValue<u8>>::ADDRESS_SIZE;
         unsafe fn with_bus(pointer: core::ptr::NonNull<()>, bus: B) -> Self {
             Self { bus, pointer }
         }
@@ -206,7 +215,7 @@ pub mod foo {
 
     impl<B: Bus> RealBlock for GenericReal<B> {
         type Bus = B;
-        const ADDRESS_SIZE: usize = B::control + <B as registers::Bus<u8>>::ADDRESS_SIZE;
+        const ADDRESS_SIZE: usize = B::control + <B as registers::BusValue<u8>>::ADDRESS_SIZE;
         unsafe fn with_bus(pointer: core::ptr::NonNull<()>, bus: B) -> Self {
             Self { bus, pointer }
         }
@@ -229,7 +238,13 @@ pub mod nested_array {
     {
     }
 
-    pub trait Bus: Copy + sealed::Bus + registers::Bus<u8> {}
+    pub trait Bus:
+        Copy
+        + sealed::Bus
+        + registers::BusValue<u8>
+        + registers::Bus<Address: registers::AddableAddress>
+    {
+    }
     impl Bus for Mmio {}
     mod sealed {
         use crate::*;
@@ -246,7 +261,7 @@ pub mod nested_array {
 
     impl<B: Bus> RealBlock for Element<B> {
         type Bus = B;
-        const ADDRESS_SIZE: usize = <B as registers::Bus<u8>>::ADDRESS_SIZE;
+        const ADDRESS_SIZE: usize = <B as registers::BusValue<u8>>::ADDRESS_SIZE;
         unsafe fn with_bus(pointer: core::ptr::NonNull<()>, bus: B) -> Self {
             Self { bus, pointer }
         }

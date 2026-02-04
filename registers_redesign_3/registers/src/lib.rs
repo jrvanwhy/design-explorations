@@ -14,16 +14,32 @@ impl UIntLike for i128 {}
 
 /// A Bus provides some way to access register values. Examples include: direct MMIO, LiteX (which
 /// is memory-mapped but does not translate 1:1 to read_volatile/write_volatile), RISC-V CSRs, etc.
+pub trait Bus: Copy {
+    type Address: Copy;
+}
+
 /// MMIO provides access to any UIntLike type, but other bus types may only provide access to
 /// certain primitives. In that case, the bus will implement Bus<T> only for the corresponding T.
-pub trait Bus<T: UIntLike>: Copy {
+pub trait BusValue<T: UIntLike>: Bus {
     const ADDRESS_SIZE: usize;
+}
+
+/// A bus address type that can be offset.
+pub trait AddableAddress: Copy {
+    /// Safety: same as raw pointers' add function
+    unsafe fn add(self, offset: usize) -> Self;
+}
+
+impl AddableAddress for core::ptr::NonNull<()> {
+    unsafe fn add(self, offset: usize) -> core::ptr::NonNull<()> {
+        unsafe { self.add(offset) }
+    }
 }
 
 /// A block of registers. Every Real type implements this. This trait is used to construct the
 /// register blocks, including sub-blocks for larger register blocks.
 pub trait RealBlock: Copy {
-    type Bus: Copy;
+    type Bus: Bus;
     /// Size this blocks occupies in the address space. Depends on Bus.
     const ADDRESS_SIZE: usize;
 
@@ -58,13 +74,19 @@ pub trait ArrayRegister: Copy {
 
 /// Real implementation of ArrayRegister.
 #[derive(Clone, Copy)]
-pub struct RealArrayRegister<E: RealBlock, const LEN: usize> {
+pub struct RealArrayRegister<E: RealBlock, const LEN: usize>
+where
+    <E::Bus as Bus>::Address: AddableAddress,
+{
     bus: E::Bus,
     phantom: PhantomData<[E; LEN]>,
     pointer: NonNull<()>,
 }
 
-impl<E: RealBlock, const LEN: usize> ArrayRegister for RealArrayRegister<E, LEN> {
+impl<E: RealBlock, const LEN: usize> ArrayRegister for RealArrayRegister<E, LEN>
+where
+    <E::Bus as Bus>::Address: AddableAddress,
+{
     type Element = E;
     const LEN: usize = LEN;
 
@@ -78,7 +100,10 @@ impl<E: RealBlock, const LEN: usize> ArrayRegister for RealArrayRegister<E, LEN>
     }
 }
 
-impl<E: RealBlock, const LEN: usize> RealBlock for RealArrayRegister<E, LEN> {
+impl<E: RealBlock, const LEN: usize> RealBlock for RealArrayRegister<E, LEN>
+where
+    <E::Bus as Bus>::Address: AddableAddress,
+{
     type Bus = E::Bus;
     const ADDRESS_SIZE: usize = LEN * E::ADDRESS_SIZE;
 
@@ -93,7 +118,10 @@ impl<E: RealBlock, const LEN: usize> RealBlock for RealArrayRegister<E, LEN> {
 
 /// Inherent impl of the constuctors so callers don't have to use `<X as RealBlock>::new()` to
 /// construct arrays.
-impl<E: RealBlock, const LEN: usize> RealArrayRegister<E, LEN> {
+impl<E: RealBlock, const LEN: usize> RealArrayRegister<E, LEN>
+where
+    <E::Bus as Bus>::Address: AddableAddress,
+{
     /// Constructs a new register array with a default Bus (e.g. an MMIO bus).
     /// # Safety
     /// `pointer` must point to a register array of type E and length LEN on Bus `B`.

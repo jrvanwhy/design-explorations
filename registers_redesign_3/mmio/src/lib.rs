@@ -10,14 +10,17 @@ use registers::*;
 #[derive(Clone, Copy, Default)]
 pub struct Mmio;
 
-impl<T: UIntLike> Bus<T> for Mmio {
+impl Bus for Mmio {
+    type Address = core::ptr::NonNull<()>;
+}
+impl<T: UIntLike> BusValue<T> for Mmio {
     const ADDRESS_SIZE: usize = size_of::<T>();
 }
 
 /// A Bus that implements BusRead<T> can support Read implementations with DataType T. Other crates
 /// (e.g. LiteX registers) can implement this on their own buses so that Read works with them as
 /// well.
-pub trait BusRead<T: UIntLike>: Bus<T> {
+pub trait BusRead<T: UIntLike>: BusValue<T> {
     /// # Safety
     /// There must be a register of type T at `pointer`, and if the register itself has safety
     /// invariants (i.e. it is `UnsafeRead`) the caller must satisfy those.
@@ -33,7 +36,7 @@ impl<T: UIntLike> BusRead<T> for Mmio {
 /// A Bus that implements BusWrite<T> can support Write implementations with DataType T. Other
 /// crates (e.g. LiteX registers) can implement this on their own buses so that Write works with
 /// them as well.
-pub trait BusWrite<T: UIntLike>: Bus<T> {
+pub trait BusWrite<T: UIntLike>: BusValue<T> {
     /// # Safety
     /// There must be a register of type T at `pointer`, and if the register itself has safety
     /// invariants (i.e. it is `UnsafeWrite`) the caller must satisfy those.
