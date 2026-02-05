@@ -1,0 +1,7 @@
+# tock-registers designs sometimes bump into visibility and orphan rule issues,
+# so instead of prototyping inside a playground crate we prototype inside a
+# playground workspace.
+
+[workspace]
+members = ["driver", "mmio", "registers", "x86"]
+resolver = "3"
